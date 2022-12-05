@@ -221,24 +221,25 @@ var light_speed = 1.0
 var time_step = 0.002
 var air_ior = 1.0
 var ray_length = 1000000
-var ray_count = 100000
-var minimum_angle = 0.   // deg
-var maximum_angle = 360. // deg
+var ray_count = 10000
+var minimum_angle = 0.  // deg
+var maximum_angle = 45. // deg
 var minimum_source_point = cart_point{0., 0.}
 var maximum_source_point = cart_point{0., 0.}
 var threads = 8
 var ray_brightness = .1
 var obstacles = []obstacle{
-	obstacle{[]cart_point{cart_point{20.0, -20.0}, cart_point{40.0, -20.0}, cart_point{40.0, 20.0}, cart_point{20.0, 20.0}}, determine_n_for_bk_seven_glass},
-	obstacle{[]cart_point{cart_point{-30.0, -10.0}, cart_point{-10.0, -10.0}, cart_point{-20.0, 10.0}}, determine_n_for_bk_seven_glass},
+	obstacle{[]cart_point{cart_point{.4 + 10., -9.6}, cart_point{.4 + 10., -.4}, cart_point{3.6 + 10., -.4}, cart_point{4. + 10., -.8}, cart_point{4. + 10., -3.}, cart_point{3.6 + 10., -3.4}, cart_point{3.6 + 10., -1.0}, cart_point{1.0 + 10., -1.0}, cart_point{3.3 + 10., -9.6}, cart_point{2.8 + 10., -9.6}, cart_point{.8 + 10., -2.2}, cart_point{.8 + 10., -9.6}}, determine_n_for_bk_seven_glass},
+	//obstacle{[]cart_point{cart_point{20.0, -20.0}, cart_point{40.0, -20.0}, cart_point{40.0, 20.0}, cart_point{20.0, 20.0}}, determine_n_for_bk_seven_glass},
+	//obstacle{[]cart_point{cart_point{-30.0, -10.0}, cart_point{-10.0, -10.0}, cart_point{-20.0, 10.0}}, determine_n_for_bk_seven_glass},
 	//obstacle{[]cart_point{cart_point{-40.0, -20.0}, cart_point{-20.0, -20.0}, cart_point{-20.0, 20.0}, cart_point{-40.0, 20.0}}, determine_n_for_bk_seven_glass},
-	draw_ellipse(10.0, 40.0, 100, cart_point{-65., 0.}, determine_n_for_bk_seven_glass),
+	//draw_ellipse(10.0, 40.0, 100, cart_point{-65., 0.}, determine_n_for_bk_seven_glass),
 }
 
 // Display settings
-var width = 2000
-var height = 200
-var scale = 40.0
+var width = 1600
+var height = 1200
+var scale = 20.0
 
 // Color
 var visible_light_range = [2]float64{380., 750.}
