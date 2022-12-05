@@ -1,0 +1,144 @@
+package main
+
+import (
+	"image"
+	"image/color"
+	"image/png"
+	"math"
+	"os"
+)
+
+type light_ray struct {
+	angle   float64 //rad
+	pos     cart_point
+	env_ior float64
+	lambda  float64 //nm
+}
+
+type cart_point struct {
+	x float64
+	y float64
+}
+
+type obstacle struct {
+	points []cart_point
+	ior    float64
+}
+
+type vector struct {
+	A cart_point
+	B cart_point
+}
+
+func ccw(A, B, C cart_point) bool {
+	return ((C.y-A.y)*(B.x-A.x) > (B.y-A.y)*(C.x-A.x))
+}
+
+func intersect_check(vecA, vecB vector) bool {
+	A := vecA.A
+	B := vecA.B
+	C := vecB.A
+	D := vecB.B
+	return (ccw(A, C, D) != ccw(B, C, D) && ccw(A, B, C) != ccw(A, B, D))
+}
+
+func get_vec_normal_abs_angle(vec vector) float64 {
+	return math.Atan((vec.A.y-vec.B.y)/(vec.B.x-vec.A.x)) + math.Pi/2.0 // 90° = math.Pi/2.0
+}
+
+func get_incident_angle(ray_angle, normal_angle float64) float64 {
+	angleA := math.Abs(ray_angle - normal_angle)
+	angleA = math.Mod(angleA+math.Pi*2, math.Pi*2)
+	angleB := math.Abs(ray_angle - normal_angle + math.Pi)
+	angleB = math.Mod(angleB+math.Pi*2, math.Pi*2)
+
+	return math.Min(angleA, angleB)
+}
+
+func exiting_obstacle_check(obstacle_ior, simulated_light_ray_env_ior float64) bool {
+	return (air_ior != simulated_light_ray_env_ior)
+}
+
+func calc_new_angle(vec_normal_abs_angle, incident_angle, new_incident_angle, simulated_light_ray_angle float64) float64 {
+	// reduce the angle
+	vec_normal_abs_angle = math.Mod(vec_normal_abs_angle, math.Pi*2)
+
+	// force it to be the positive remainder, so that 0 <= angle < 360
+	vec_normal_abs_angle = math.Mod((vec_normal_abs_angle + math.Pi*2), math.Pi*2)
+
+	// force into the minimum absolute value residue class, so that -180 < angle <= 180
+	if vec_normal_abs_angle > math.Pi {
+		vec_normal_abs_angle -= math.Pi * 2.0
+	}
+	if vec_normal_abs_angle < 0 {
+		vec_normal_abs_angle += math.Pi
+	}
+	test_angle := math.Abs(vec_normal_abs_angle - incident_angle)
+	if 0 < test_angle && test_angle < math.Pi/2.0 {
+		return math.Mod(simulated_light_ray_angle+new_incident_angle-incident_angle, math.Pi*2)
+	} else {
+		return math.Mod(simulated_light_ray_angle+incident_angle-new_incident_angle, math.Pi*2)
+	}
+}
+
+func refraction(simulated_light_ray_vector vector, simulated_light_ray light_ray) light_ray {
+	for _, current_obstacle := range obstacles {
+		for i, _ := range current_obstacle.points {
+			side := vector{current_obstacle.points[i], current_obstacle.points[(i+1)%len(current_obstacle.points)]}
+			if intersect_check(side, simulated_light_ray_vector) {
+				vec_normal_abs_angle := get_vec_normal_abs_angle(side)
+				incident_angle := get_incident_angle(simulated_light_ray.angle, vec_normal_abs_angle)
+				is_exiting_obstacle := exiting_obstacle_check(current_obstacle.ior, simulated_light_ray.env_ior)
+				new_ior := current_obstacle.ior
+				if is_exiting_obstacle {
+					new_ior = air_ior
+				}
+				new_incident_angle := math.Asin(simulated_light_ray.env_ior * math.Sin(incident_angle) / new_ior)
+				simulated_light_ray.env_ior = new_ior
+				simulated_light_ray.angle = calc_new_angle(vec_normal_abs_angle, incident_angle, new_incident_angle, simulated_light_ray.angle)
+			}
+		}
+	}
+	return simulated_light_ray
+}
+
+func update_light_ray(simulated_light_ray light_ray) light_ray {
+	simulated_light_ray.angle = math.Mod(simulated_light_ray.angle+math.Pi*2, math.Pi*2)
+	simulated_light_ray_prev_pos := simulated_light_ray.pos
+	simulated_light_ray.pos.x += light_speed * time_step * math.Cos(simulated_light_ray.angle)
+	simulated_light_ray.pos.y += -light_speed * time_step * math.Sin(simulated_light_ray.angle)
+	simulated_light_ray_vector := vector{simulated_light_ray_prev_pos, simulated_light_ray.pos}
+	simulated_light_ray = refraction(simulated_light_ray_vector, simulated_light_ray)
+	return simulated_light_ray
+}
+
+// Simulation settings
+var light_speed = 1.0
+var time_step = 1.0
+var air_ior = 1.0
+var ray_length = 10000
+var obstacles = []obstacle{obstacle{[]cart_point{cart_point{-50.0, 50.0}, cart_point{50.0, 50.0}, cart_point{50.0, -50.0}}, 1.333}}
+
+func main() {
+	// Simulation
+	width := 2000
+	height := 1000
+	scale := 10.0
+	ray_count := 10000
+
+	upLeft := image.Point{0, 0}
+	lowRight := image.Point{width, height}
+
+	img := image.NewRGBA(image.Rectangle{upLeft, lowRight})
+	for a := 0; a < ray_count; a++ {
+		simulated_light_ray := light_ray{math.Pi * 2.0 / float64(ray_count) * float64(a), cart_point{-25., 0.}, air_ior, 420.}
+		for i := 0; i < ray_length; i++ {
+			img.Set(int(simulated_light_ray.pos.x*scale)+width/2, int(simulated_light_ray.pos.y*scale)+height/2, color.White)
+			simulated_light_ray = update_light_ray(simulated_light_ray)
+		}
+	}
+
+	// Encode as PNG.
+	f, _ := os.Create("image.png")
+	png.Encode(f, img)
+}
